@@ -5,8 +5,12 @@
 */
 
 // the setup function runs once when you press reset or power the board
+#include <Arduino.h>
 #include "ws2811.h"
 #include <FastLED.h>
+#include "MSGEQ7.h"
+#include "beat.h"
+#include "disco.h"
 
 FASTLED_USING_NAMESPACE
 #if defined(FASTLED_VERSION) && (FASTLED_VERSION < 3001000)
@@ -18,14 +22,40 @@ FASTLED_USING_NAMESPACE
 //#define BOX_ID 0
 //#define N_NODES 3
 
+#define LED_DATA_PIN 3
+//#define COLOR_ORDER BRG
+#define CHIPSET     WS2811
 
+//#define NUM_LEDS    100
+//#define NUM_LEDS_PER_ROW 50
+//#define NUM_LED_ROWS NUM_LEDS/NUM_LEDS_PER_ROW
+//#define NUM_LED_ROWS 2
+#define VALUE_MAX 255
+#define SATURATION_MAX 255
+
+//#define BRIGHTNESS  255  // reduce power consumption
+
+#define LED_DITHER  255  // try 0 to disable flickering
+#define CORRECTION  TypicalLEDStrip
+
+#define pinAnalogLeft A0
+#define pinAnalogRight A0
+#define pinReset 6
+#define pinStrobe 4
+#define MSGEQ7_INTERVAL ReadsPerSecond(10000)
+#define MSGEQ7_SMOOTH false
+
+CMSGEQ7<MSGEQ7_SMOOTH, pinReset, pinStrobe, pinAnalogLeft, pinAnalogRight> MSGEQ7;
+ 
 CRGB leds[NUM_LEDS];
+LEDControl ledControl(leds);
+
 
 // Four buttons for controlling LEDS
-int button_fade_pin; // Button 1: Fade
-int button_strobe_pin;// Button 2: Strobe
-int button_toggle_pin; // Button 3: Toggle
-int button_surprise_pin; // Button 4: Surprise
+uint8_t button_fade_pin; // Button 1: Fade
+uint8_t button_strobe_pin;// Button 2: Strobe
+uint8_t button_toggle_pin; // Button 3: Toggle
+uint8_t button_surprise_pin; // Button 4: Surprise
 
 
 bool last_sensor_value;
@@ -42,122 +72,230 @@ void setup() {
     pinMode(button_toggle_pin, INPUT); // pullup?
     pinMode(button_surprise_pin, INPUT); // pullup?
 
-	// tell FastLED about the LED strip configuration
-	FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	// set master brightness control
+	// FastLED setup
+	FastLED.addLeds<CHIPSET, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(CORRECTION);
 	FastLED.setBrightness(BRIGHTNESS);
+	FastLED.setDither(LED_DITHER);
+	FastLED.show(); // needed to reset leds to zero
 
-	set_each_strip_in_bench_with_color_diff(leds, 200, 70, 30);
+	MSGEQ7.begin();
+	Serial.println("Start of DJ code");
+
+	ledControl.set_color(50, 255, 255);
+	ledControl.fill_num_leds_solid(NUM_LEDS);
+
+	FastLED.show();
+	delay(1000);
+	ledControl.set_color(100, 255, 100);
+	ledControl.fill_num_leds_solid(NUM_LEDS);
+	FastLED.show();
+	delay(2000);
+	ledControl.set_color(200, 255, 500);
+	ledControl.fill_num_leds_solid(NUM_LEDS/2);
+	FastLED.show();
 	
 }
 
-// the loop function runs over and over again until power down or reset
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void(*SimplePatternList[])();
-SimplePatternList gPatterns = { rainbow_standing, rainbow_standing, rainbow_standing, sinelon, rainbow_laying, rainbow_laying, rainbow_laying, strole_up_and_down, fill_sideways, rainbow_standing, rainbow_standing, strole_up_and_down };
+// SimplePatternList gPatterns = { rainbow_standing, rainbow_standing, rainbow_standing, sinelon, rainbow_laying, rainbow_laying, rainbow_laying, strole_up_and_down, fill_sideways, rainbow_standing, rainbow_standing, strole_up_and_down };
 
 uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
-uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+//uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
 
 uint8_t last_sensor = 0;
+
+
+uint16_t filterValue;
+//CRGB color = CHSV(gHue, 255, 255);
+uint8_t musicMode = DISCO_CHANGE;
+uint8_t beat = 0;
+uint16_t focusPosition = 0;
+uint8_t focusRow = 0;
+uint8_t ledsAreShown = 0;
 void loop()
 {
+	// Analyze without delay
+	if (MSGEQ7.read(MSGEQ7_INTERVAL))
+	{
+		// Led strip output
+		filterValue = MSGEQ7.get(MSGEQ7_BASS);
+		beat = isBeat(filterValue);
+	
+	}
 
+	// Change color every 20ms
+	EVERY_N_MILLIS(20) 
+	{ 
+		ledControl.increment_color_hue();
+
+	}
+
+	EVERY_N_MILLIS(30)
+	{
+		FastLED.show();
+		ledsAreShown = 1;
+	}
+
+
+	EVERY_N_SECONDS(5)
+	{
+		if (++musicMode > DISCO_NUM_MODES)
+			musicMode = DISCO_CHANGE;
+		
+	}
+
+	switch (musicMode)
+	{
+		case DISCO_CHANGE:
+			if(beat)
+			{
+
+				ledControl.increment_color_hue(50);
+				
+				ledControl.fill_num_leds_solid(NUM_LEDS);
+			}
+			break;
+		case DISCO_PULSE:
+			if(beat){
+				ledsAreShown = 0;
+				ledControl.increment_color_hue(20);
+				ledControl.fill_num_leds_solid(NUM_LEDS);
+			}
+			else
+			{
+				if(ledsAreShown)
+				{
+					EVERY_N_MILLIS(3)
+					{
+						ledControl.fade_color();
+						ledControl.fill_num_leds_solid(NUM_LEDS);
+					}
+
+				}
+			}
+			break;
+		case DISCO_SNAKE:
+			if(beat)
+			{
+				ledsAreShown = 0;
+				ledControl.set_color(ledControl.get_color().hue, ledControl.get_color().sat, VALUE_MAX);
+				ledControl.fill_num_leds_solid(NUM_LEDS);
+
+			}
+			else
+			{
+				if(ledsAreShown)
+				{
+					ledsAreShown = 0;
+					ledControl.set_color_val(40);
+					// Set all LEDs to a low brightness state
+					ledControl.fill_num_leds_solid(NUM_LEDS);
+					
+					if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
+
+					ledControl.set_color_val(VALUE_MAX);
+					ledControl.set_pixel(focusPosition);
+					ledControl.set_pixel(NUM_LEDS-focusPosition-1);
+				}
+			}
+			break;
+
+		case DISCO_UPWARDS:
+			if(beat)
+			{
+				//gValue = 255;
+				//color = CHSV(gHue, gSat, 0);
+				// Turn of all LEDs
+				ledControl.set_color_val(0);
+				ledControl.fill_num_leds_solid(NUM_LEDS);
+				
+				//color = CHSV(gHue, gSat, gValue);					
+				// Turn on specific row
+				ledControl.set_color_val(VALUE_MAX);
+				if(++focusRow>(NUM_LED_ROWS-1)) {focusRow= 0;}
+
+				//for(uint8_t pos = 0; pos < NUM_LEDS_PER_ROW; pos++)
+				//{
+				//	leds[(focusRow*NUM_LEDS_PER_ROW) + pos] = color;
+				//}
+				ledControl.set_strip(focusRow);
+			}
+	}
 	
 
 	// Call the current pattern function once, updating the 'leds' array
 	//fill_sideways();
-	gPatterns[gCurrentPatternNumber]();
+	//gPatterns[gCurrentPatternNumber]();
 
 
 	// send the 'leds' array out to the actual LED strip
-	FastLED.show();
+	//FastLED.show();
 	// insert a delay to keep the framerate modest
-	FastLED.delay(1000 / FRAMES_PER_SECOND);
+	//FastLED.delay(1000 / FRAMES_PER_SECOND);
 
 
 	//// do some periodic updates
 	//if (!sensor_changed_to_low)
 	//{
-	EVERY_N_MILLISECONDS(20) { gHue++; } // slowly cycle the "base color" through the rainbow
+	//EVERY_N_MILLISECONDS(20) { gHue++; } // slowly cycle the "base color" through the rainbow
 	
 
-	EVERY_N_SECONDS(10) { nextPattern(); } // change patterns periodically
-	EVERY_N_BSECONDS(1) 
-	{
-		Serial.print(F("SENSOR: "));
-		Serial.println(digitalRead(IR_SENSOR_1_PIN));
-		if ((digitalRead(IR_SENSOR_1_PIN) == LOW) && (last_sensor == HIGH))
-		{
-			last_sensor =  LOW;
-			for (uint8_t j = 0; j < 4; j++)
-			{
-				for (uint8_t i = 0; i < 12; i++)
-				{
-					set_strip(leds, i, CHSV(gHue, 255, 255));
-				}
-				delay(150);
-				for (uint8_t i = 0; i < 12; i++)
-				{
-					set_strip(leds, i, CHSV(0, 0, 0));
-				}
-				delay(500);
-			}
-		}
-	 }
-	else
-		last_sensor = digitalRead(IR_SENSOR_1_PIN);
+	// EVERY_N_SECONDS(10) { nextPattern(); } // change patterns periodically
+	//EVERY_N_BSECONDS(1) 
+	//{
+	//	uint8_t _dummy;
+	//}
 }
 
-#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+// #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
-void nextPattern()
-{
-	// add one to the current pattern number, and wrap around at the end
-	gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE(gPatterns);
-}
+// void nextPattern()
+// {
+// 	// add one to the current pattern number, and wrap around at the end
+// 	gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE(gPatterns);
+// }
 
-void rainbow_standing()
-{
-	set_rainbow_standing(leds, CHSV(gHue, 255, 255));
-}
+// void rainbow_standing()
+// {
+// 	set_rainbow_standing(leds, CHSV(gHue, 255, 255));
+// }
 
-void rainbow_laying()
-{
-	set_rainbow_laying(leds, CHSV(gHue, 255, 255));
-}
+// void rainbow_laying()
+// {
+// 	set_rainbow_laying(leds, CHSV(gHue, 255, 255));
+// }
 
-void sinelon()
-{
-	// a colored dot sweeping back and forth, with fading trails
-	fadeToBlackBy(leds, NUM_LEDS, 20);
-	int pos = beatsin16(13, 0, NUM_LEDS - 1);
-	leds[pos] += CHSV(gHue, 255, 192);
-}
+// void sinelon()
+// {
+// 	// a colored dot sweeping back and forth, with fading trails
+// 	fadeToBlackBy(leds, NUM_LEDS, 20);
+// 	int pos = beatsin16(13, 0, NUM_LEDS - 1);
+// 	leds[pos] += CHSV(gHue, 255, 192);
+// }
 
-void strole_up_and_down()
-{
-	strole_strip_upwards(leds, 50, CHSV(gHue, 255, 255));
-	delay(1000);
-	strole_strip_downwards(leds, 50, CHSV(gHue, 255, 255));
-	delay(1000);
-	gHue += 100;
-}
+// void strole_up_and_down()
+// {
+// 	strole_strip_upwards(leds, 50, CHSV(gHue, 255, 255));
+// 	delay(1000);
+// 	strole_strip_downwards(leds, 50, CHSV(gHue, 255, 255));
+// 	delay(1000);
+// 	gHue += 100;
+// }
 
-void fill_sideways()
-{
-	fill_from_left(leds, 50, CHSV(gHue, 255, 255));
-	delay(4000);
-	gHue += 100;
-	fill_from_right(leds, 50, CHSV(gHue, 255, 255));
-	delay(4000);
+// void fill_sideways()
+// {
+// 	fill_from_left(leds, 50, CHSV(gHue, 255, 255));
+// 	delay(4000);
+// 	gHue += 100;
+// 	fill_from_right(leds, 50, CHSV(gHue, 255, 255));
+// 	delay(4000);
 	
-}
+// }
 
-void four_tiles_blink_inverted()
-{
-	four_tile_show(leds, 300, CHSV(gHue, 255, 255));
-}
+// void four_tiles_blink_inverted()
+// {
+// 	four_tile_show(leds, 300, CHSV(gHue, 255, 255));
+// }
