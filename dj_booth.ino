@@ -6,7 +6,7 @@
 
 // the setup function runs once when you press reset or power the board
 #include <Arduino.h>
-#include "ws2811.h"
+#include "LEDControl.h"
 #include <FastLED.h>
 #include "MSGEQ7.h"
 #include "beat.h"
@@ -30,10 +30,11 @@ FASTLED_USING_NAMESPACE
 //#define NUM_LEDS_PER_ROW 50
 //#define NUM_LED_ROWS NUM_LEDS/NUM_LEDS_PER_ROW
 //#define NUM_LED_ROWS 2
-#define VALUE_MAX 255
-#define SATURATION_MAX 255
+
 
 //#define BRIGHTNESS  255  // reduce power consumption
+
+#define MUSIC_ON_LIMIT 500 // show pause pattern if more than 5 seconds between beats
 
 #define LED_DITHER  255  // try 0 to disable flickering
 #define CORRECTION  TypicalLEDStrip
@@ -42,7 +43,7 @@ FASTLED_USING_NAMESPACE
 #define pinAnalogRight A0
 #define pinReset 6
 #define pinStrobe 4
-#define MSGEQ7_INTERVAL ReadsPerSecond(10000)
+#define MSGEQ7_INTERVAL ReadsPerSecond(1000)
 #define MSGEQ7_SMOOTH false
 
 CMSGEQ7<MSGEQ7_SMOOTH, pinReset, pinStrobe, pinAnalogLeft, pinAnalogRight> MSGEQ7;
@@ -98,7 +99,7 @@ void setup() {
 
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
-typedef void(*SimplePatternList[])();
+//typedef void(*SimplePatternList[])();
 // SimplePatternList gPatterns = { rainbow_standing, rainbow_standing, rainbow_standing, sinelon, rainbow_laying, rainbow_laying, rainbow_laying, strole_up_and_down, fill_sideways, rainbow_standing, rainbow_standing, strole_up_and_down };
 
 uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
@@ -115,6 +116,10 @@ uint8_t beat = 0;
 uint16_t focusPosition = 0;
 uint8_t focusRow = 0;
 uint8_t ledsAreShown = 0;
+bool buttonLowBlinkPressed = false;
+bool buttonFullBlinkPressed = false;
+bool buttonSnakePressed = false;
+unsigned long lastBeat;
 void loop()
 {
 	// Analyze without delay
@@ -123,107 +128,67 @@ void loop()
 		// Led strip output
 		filterValue = MSGEQ7.get(MSGEQ7_BASS);
 		beat = isBeat(filterValue);
+		lastBeat = millis();
 	
 	}
 
 	// Change color every 20ms
 	EVERY_N_MILLIS(20) 
 	{ 
-		ledControl.increment_color_hue();
+		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
+		{
+			ledControl.increment_color_hue();
+		}
 
 	}
+	//EVERY_N_SECONDS(10)
+	//{
+		//buttonLowBlinkPressed = !buttonLowBlinkPressed;
+		//buttonFullBlinkPressed = !buttonFullBlinkPressed;
+		//buttonSnakePressed= !buttonSnakePressed;
+	//}
 
 	EVERY_N_MILLIS(30)
 	{
 		FastLED.show();
-		ledsAreShown = 1;
+		ledControl.set_ledsAreShown();
 	}
 
 
 	EVERY_N_SECONDS(5)
 	{
-		if (++musicMode > DISCO_NUM_MODES)
-			musicMode = DISCO_CHANGE;
+		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
+		{
+			ledControl.switch_disco_pattern();
+		}
 		
 	}
-
-	switch (musicMode)
+	//if (millis() - lastBeat < MUSIC_ON_LIMIT)
+	//{
+		if (buttonLowBlinkPressed)
+		{
+			ledControl.show_user_low_pattern(beat);
+		} 
+		else if (buttonFullBlinkPressed)
+		{
+			ledControl.show_user_full_pattern(beat);
+		}
+		else if (buttonSnakePressed)
+		{
+			ledControl.show_user_snake_pattern();
+		}
+		else {
+			ledControl.show_disco_pattern(beat);
+		}
+	/*}
+	else
 	{
-		case DISCO_CHANGE:
-			if(beat)
-			{
+		ledControl.show_pause_pattern();
+	}*/
+	
 
-				ledControl.increment_color_hue(50);
-				
-				ledControl.fill_num_leds_solid(NUM_LEDS);
-			}
-			break;
-		case DISCO_PULSE:
-			if(beat){
-				ledsAreShown = 0;
-				ledControl.increment_color_hue(20);
-				ledControl.fill_num_leds_solid(NUM_LEDS);
-			}
-			else
-			{
-				if(ledsAreShown)
-				{
-					EVERY_N_MILLIS(3)
-					{
-						ledControl.fade_color();
-						ledControl.fill_num_leds_solid(NUM_LEDS);
-					}
-
-				}
-			}
-			break;
-		case DISCO_SNAKE:
-			if(beat)
-			{
-				ledsAreShown = 0;
-				ledControl.set_color(ledControl.get_color().hue, ledControl.get_color().sat, VALUE_MAX);
-				ledControl.fill_num_leds_solid(NUM_LEDS);
-
-			}
-			else
-			{
-				if(ledsAreShown)
-				{
-					ledsAreShown = 0;
-					ledControl.set_color_val(40);
-					// Set all LEDs to a low brightness state
-					ledControl.fill_num_leds_solid(NUM_LEDS);
-					
-					if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
-
-					ledControl.set_color_val(VALUE_MAX);
-					ledControl.set_pixel(focusPosition);
-					ledControl.set_pixel(NUM_LEDS-focusPosition-1);
-				}
-			}
-			break;
-
-		case DISCO_UPWARDS:
-			if(beat)
-			{
-				//gValue = 255;
-				//color = CHSV(gHue, gSat, 0);
-				// Turn of all LEDs
-				ledControl.set_color_val(0);
-				ledControl.fill_num_leds_solid(NUM_LEDS);
-				
-				//color = CHSV(gHue, gSat, gValue);					
-				// Turn on specific row
-				ledControl.set_color_val(VALUE_MAX);
-				if(++focusRow>(NUM_LED_ROWS-1)) {focusRow= 0;}
-
-				//for(uint8_t pos = 0; pos < NUM_LEDS_PER_ROW; pos++)
-				//{
-				//	leds[(focusRow*NUM_LEDS_PER_ROW) + pos] = color;
-				//}
-				ledControl.set_strip(focusRow);
-			}
-	}
+	
+	
 	
 
 	// Call the current pattern function once, updating the 'leds' array

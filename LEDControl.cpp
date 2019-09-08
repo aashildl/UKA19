@@ -2,14 +2,19 @@
 // 
 // 
 
-#include "ws2811.h"
+#include "LEDControl.h"
+#define LOW_BLINK_VALUE 70
+#define LOW_NO_BLINK_VALUE 50
 
 void LEDControl::show_pause_pattern()
 {
 	switch (pausePattern)
 	{
 	case RAINBOW:
-		set_rainbow_laying();
+		//set_rainbow_laying();
+		color.hue = 0;
+		color.val = 100;
+		fill_num_leds_solid(NUM_LEDS);
 		break;
 	
 	case SNAKE:
@@ -26,21 +31,197 @@ void LEDControl::show_pause_pattern()
 
 void LEDControl::show_disco_pattern(bool beat)
 {
+	if (snakeRunning)
+	{
+		show_user_snake_pattern();
+		return;
+	}
+	if (beat && nextDiscoPattern != discoPattern)
+	{
+		discoPattern = nextDiscoPattern;
+	}
 	switch(discoPattern)
 	{
 		case DISCO_CHANGE:
-		if (beat)
-		{
-			increment_color_hue(50);
-			fill_num_leds_solid(NUM_LEDS);
-			break;
-		}
-		case DISCO_PULSE:
-		if (beat)
-		{
+			if (beat)
+			{
+				increment_color_hue(50);
+				set_color_val(VALUE_MAX);
+				fill_num_leds_solid(NUM_LEDS);
 			
+			}
+			break;
+		case DISCO_PULSE:
+			if(beat){
+				ledsAreShown = false;
+				increment_color_hue(20);
+				set_color_val(VALUE_MAX);
+				fill_num_leds_solid(NUM_LEDS);
+				lastChange = 0;
+			}
+			else
+			{
+				if(ledsAreShown)
+				{
+					fade_color();
+					fill_num_leds_solid(NUM_LEDS);
+					ledsAreShown = false;				
+				}
+			}
+			break;
+		case DISCO_TOGGLE:
+			if(beat && ledsAreShown){
+				ledsAreShown = false;
+				if (toggleBeat)
+				{
+					set_color_val(VALUE_MAX);
+				}
+				else
+				{
+					set_color_val(0);
+				}
+				fill_num_leds_solid(NUM_LEDS);
+				toggleBeat = !toggleBeat;
+			}
+			break;
+		case DISCO_SNAKE:
+			if(beat)
+			{
+				ledsAreShown = 0;
+				color.val = VALUE_MAX;
+				fill_num_leds_solid(NUM_LEDS);
+
+			}
+			else
+			{
+				if(ledsAreShown)
+				{
+					ledsAreShown = 0;
+					set_color_val(40);
+					// Set all LEDs to a low brightness state
+					fill_num_leds_solid(NUM_LEDS);
+					
+					if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
+
+					set_color_val(VALUE_MAX);
+					set_pixel(focusPosition);
+					set_pixel(NUM_LEDS-focusPosition-1);
+				}
+			}
+			break;
+
+		case DISCO_UPWARDS:
+			if(beat)
+			{
+				// Turn of all LEDs
+				set_color_val(0);
+				fill_num_leds_solid(NUM_LEDS);
+				
+								
+				// Turn on specific row
+				set_color_val(VALUE_MAX);
+				if(++focusRow>(NUM_LED_ROWS-1)) {focusRow= 0;}
+				set_strip(focusRow);
+			}
+			break;
+	}
+}
+
+void LEDControl::show_user_low_pattern(bool beat)
+{
+	if (snakeRunning)
+	{
+		show_user_snake_pattern();
+		return;
+	}
+	if (beat)
+	{
+		color.value = LOW_BLINK_VALUE;
+		fill_num_leds_solid(NUM_LEDS);
+		ledsAreShown = false;
+	}
+	else
+	{
+		if (ledsAreShown)
+		{
+			color.value = LOW_NO_BLINK_VALUE;
+			fill_num_leds_solid(NUM_LEDS);
 		}
 	}
+	
+}
+
+void LEDControl::show_user_full_pattern(bool beat)
+{
+	if (snakeRunning)
+	{
+		show_user_snake_pattern();
+		return;
+	}
+	if (beat)
+	{
+		color.value = VALUE_MAX;
+		fill_num_leds_solid(NUM_LEDS);
+		ledsAreShown = false;
+	}
+	else
+	{
+		if (ledsAreShown)
+		{
+			color.value = VALUE_MAX-50;
+			fill_num_leds_solid(NUM_LEDS);
+		}
+	}
+}
+
+void LEDControl::show_user_snake_pattern()
+{
+	if (!snakeRunning)
+	{
+		snakeRunning = true;
+		focusPosition = 0;
+	}
+
+	if (ledsAreShown)
+	{
+		ledsAreShown = false;
+		color.value = 0;
+		fill_num_leds_solid(NUM_LEDS);
+		color.value = VALUE_MAX;
+		set_pixel(focusPosition++);
+		set_pixel(focusPosition++);
+	}
+	if (focusPosition >= NUM_LEDS-2)
+	{
+		snakeRunning = false;
+	}
+}
+
+void LEDControl::switch_disco_pattern()
+{
+	switch (discoPattern)
+	{
+	case DISCO_CHANGE:
+		nextDiscoPattern = DISCO_PULSE;
+		break;
+	case DISCO_PULSE:
+		nextDiscoPattern = DISCO_TOGGLE;
+		break;
+	case DISCO_TOGGLE:
+		nextDiscoPattern = DISCO_SNAKE;
+		break;
+	case DISCO_SNAKE:
+		nextDiscoPattern = DISCO_UPWARDS;
+		break;
+	case DISCO_UPWARDS:
+		nextDiscoPattern = DISCO_CHANGE;
+	default:
+		break;
+	}
+}
+void LEDControl::set_ledsAreShown()
+{
+	ledsAreShown = true;
 }
 
 void LEDControl::set_color(CHSV color)
@@ -80,9 +261,9 @@ const CHSV& LEDControl::get_color()
 
 void LEDControl::fade_color()
 {
-	if (color.value >150)    	{ color.value-=2; }
-	else if (color.value > 40) 	{ color.value--;}
-	else 					{ color.value = 40; }
+	if (color.value >150)    	{ color.value-=6; }
+	else if (color.value > 30) 	{ color.value-=3;}
+	else 					{ color.value = 30; }
 }
 
 void LEDControl::fill_num_leds_solid(uint16_t numToFill)
@@ -346,10 +527,11 @@ void LEDControl::set_rainbow_standing()
 void LEDControl::set_rainbow_laying()
 {
 	CHSV color_rainbow = color;
-	for (uint8_t row = 0; row < 12; row++)
+	for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
 	{
-		//LEDControl::set_strip(row, color_rainbow);
+		set_strip(row);
 		color_rainbow.hue + 21 > 255 ? color_rainbow.hue = color_rainbow.hue + 21 - 255 : color_rainbow.hue += 21;
+		color = color_rainbow;
 	}
 }
 

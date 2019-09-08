@@ -1,7 +1,7 @@
 // ws2811.h
 
-#ifndef _WS2811_h
-#define _WS2811_h
+#ifndef _LEDCONTROL_H
+#define _LEDCONTROL_H
 
 #if defined(ARDUINO) && ARDUINO >= 100
 	#include "Arduino.h"
@@ -15,12 +15,15 @@
 #define LED_TYPE    WS2811
 #define COLOR_ORDER BRG // Single ws2811 lights are rgb, strips are brg
 //#define NUM_LEDS    144 // 50 LEDS PER STRIP // 11 LEDS PER PLANK IN BENCH
-#define NUM_LEDS 100
+#define NUM_LEDS 350
 #define NUM_LEDS_PER_ROW 50
 #define NUM_LED_ROWS 2
 
 #define BRIGHTNESS         255
 #define FRAMES_PER_SECOND  600
+
+#define VALUE_MAX 255
+#define SATURATION_MAX 255
 
 
 #define OFFSET_BACK 72
@@ -29,11 +32,23 @@
 
 class LEDControl {
 public:
-	LEDControl(CRGB* leds): leds(leds), pausePattern(RAINBOW), discoPattern(DISCO_CHANGE), color({0, 255, 255}) {};
+	LEDControl(CRGB* leds): leds(leds), 
+							pausePattern(RAINBOW), 
+							discoPattern(DISCO_CHANGE), 
+							nextDiscoPattern(DISCO_CHANGE), 
+							toggleBeat(true), 
+							focusPosition(0),
+							focusRow(0),
+							snakeRunning(false),
+							color({0, 255, 255}) {};
 
 	void show_pause_pattern();
 
 	void show_disco_pattern(bool beat);
+
+	void show_user_low_pattern(bool beat);
+	void show_user_full_pattern(bool beat);
+	void show_user_snake_pattern();
 
 	void switch_disco_pattern();
 
@@ -45,6 +60,8 @@ public:
 	void fade_color();
 	uint8_t get_color_hue();
 	const CHSV& get_color();
+
+	void set_ledsAreShown();
 
 	 // Set color functions
 	void set_strip(uint8_t strip_number);
@@ -88,7 +105,14 @@ private:
 	CHSV color;
 
 	enum {RAINBOW, SNAKE, STROLE} pausePattern;
-	enum {DISCO_CHANGE, DISCO_PULSE, DISCO_SNAKE, DISCO_UPWARDS} discoPattern;
+	enum {DISCO_CHANGE, DISCO_PULSE, DISCO_TOGGLE, DISCO_SNAKE, DISCO_UPWARDS} discoPattern, nextDiscoPattern;
+
+	bool ledsAreShown;
+	unsigned long lastChange;
+	bool toggleBeat;
+	uint16_t focusPosition = 0;
+	uint8_t focusRow = 0;
+	bool snakeRunning;
 };
 
 

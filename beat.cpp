@@ -37,7 +37,7 @@ uint8_t isBeat(uint16_t filterval){
 			noBeatCount++;
 		}
 		
-		if (noBeatCount>=700){
+		if (noBeatCount>=NO_BEAT_COUNT){
 			if(filterval>beatVal){
 				beatVal=filterval;
 				noBeatCount=0;
