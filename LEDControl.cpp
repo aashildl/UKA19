@@ -51,6 +51,15 @@ void LEDControl::show_pause_pattern()
 		single_snake(color);
 		break;
 
+	case PAUSE_UKA_LETTERS:
+		uka_letters(focusColumn);
+		if (toggleBeat)
+		{
+			if (++focusColumn > (NUM_LEDS_PER_ROW + 32 -1)) focusColumn = 0;
+
+		}
+		toggleBeat = !toggleBeat;
+
 	default:
 		break;
 	}
@@ -263,19 +272,20 @@ void LEDControl::show_user_full_pattern(bool beat)
 		show_user_snake_pattern();
 		return;
 	}
-	if (beat)
-	{
-		color.value = VALUE_MAX;
-		fill_all_leds_solid();
+	if(beat && ledsAreShown){
 		ledsAreShown = false;
-	}
-	else
-	{
-		if (ledsAreShown)
+		color.value = VALUE_MAX;
+		color.hue = 0;
+		if (toggleBeat)
 		{
-			color.value = VALUE_MAX-50;
+			uka_letters((NUM_LEDS_PER_ROW / 2) + (NUM_LETTER_COLS / 2));
+		}
+		else
+		{
+			color.sat = SATURATION_MAX;
 			fill_all_leds_solid();
 		}
+		toggleBeat = !toggleBeat;
 	}
 }
 
@@ -706,3 +716,24 @@ void LEDControl::single_snake(CHSV& color)
 	if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
 }
 
+void LEDControl::uka_letters(uint8_t offset)
+{
+	if (offset >= 0 && offset < NUM_LEDS_PER_ROW + 32)
+		for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
+		{
+			for (uint8_t col = 0; col < NUM_LEDS_PER_ROW; col++)
+			{
+				//if (NUM_LEDS_PER_ROW + 32 - col < 32)
+				if (col > NUM_LEDS_PER_ROW - offset -1
+				&& col < NUM_LEDS_PER_ROW - offset + 32)
+				{
+					color.sat = getBit(row, col + 1 + offset - NUM_LEDS_PER_ROW) ? 0 : SATURATION_MAX;
+				}
+				else
+				{
+					color.sat = SATURATION_MAX;
+				}
+				set_pixel(row, col);
+			}
+		}
+}

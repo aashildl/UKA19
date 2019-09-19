@@ -9,6 +9,7 @@
 	#include "WProgram.h"
 #endif
 #include <FastLED.h>
+#include "UKA.h"
 
 
 #define DATA_PIN    3
@@ -51,8 +52,9 @@
 #define PAUSE_RAINBOW_STANDING 1
 #define PAUSE_FILL_SNAKE 2
 #define PAUSE_DOUBLE_SNAKE 3
+#define PAUSE_UKA_LETTERS 4
 
-#define NUM_PAUSE_PATTERNS 4
+#define NUM_PAUSE_PATTERNS 5
 
 
 class LEDControl {
@@ -126,6 +128,7 @@ public:
 
 	void double_row_snake(CHSV& color);
 	void single_snake(CHSV& color);
+	void uka_letters(uint8_t offset);
 
 private:
 	CRGB* leds;	
