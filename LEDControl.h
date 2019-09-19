@@ -91,7 +91,6 @@ public:
 	void set_ledsAreShown();
 
 	 // Set color functions
-	void set_strip(uint8_t strip_number);
 	void set_row(uint8_t row);
 	void set_row(uint8_t row, CHSV& color);
 	void set_each_strip_with_color_diff(uint16_t delay_time, uint8_t hue, uint8_t hue_diff);
