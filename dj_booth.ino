@@ -18,21 +18,8 @@ FASTLED_USING_NAMESPACE
 #endif
 
 
-	// Define which box is in use
-//#define BOX_ID 0
-//#define N_NODES 3
-
 #define LED_DATA_PIN 3
-//#define COLOR_ORDER BRG
 #define CHIPSET     WS2811
-
-//#define NUM_LEDS    100
-//#define NUM_LEDS_PER_ROW 50
-//#define NUM_LED_ROWS NUM_LEDS/NUM_LEDS_PER_ROW
-//#define NUM_LED_ROWS 2
-
-
-//#define BRIGHTNESS  255  // reduce power consumption
 
 #define MUSIC_ON_LIMIT 500 // show pause pattern if more than 5 seconds between beats
 
@@ -83,91 +70,76 @@ void setup() {
 	Serial.println("Start of DJ code");
 
 	ledControl.set_color(50, 255, 255);
-	ledControl.fill_num_leds_solid(NUM_LEDS);
+	ledControl.fill_all_leds_solid();
 
 	FastLED.show();
 	delay(1000);
 	ledControl.set_color(100, 255, 100);
-	ledControl.fill_num_leds_solid(NUM_LEDS);
+	ledControl.fill_all_leds_solid();
 	FastLED.show();
 	delay(2000);
 	ledControl.set_color(200, 255, 500);
-	ledControl.fill_num_leds_solid(NUM_LEDS/2);
+	ledControl.set_row(1);
 	FastLED.show();
 	
 }
 
 
-// List of patterns to cycle through.  Each is defined as a separate function below.
-//typedef void(*SimplePatternList[])();
-// SimplePatternList gPatterns = { rainbow_standing, rainbow_standing, rainbow_standing, sinelon, rainbow_laying, rainbow_laying, rainbow_laying, strole_up_and_down, fill_sideways, rainbow_standing, rainbow_standing, strole_up_and_down };
-
-uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
-//uint8_t gHue = 0; // rotating "base color" used by many of the patterns
-
-
-uint8_t last_sensor = 0;
-
-
-uint16_t filterValue;
-//CRGB color = CHSV(gHue, 255, 255);
-uint8_t musicMode = DISCO_CHANGE;
-uint8_t beat = 0;
-uint16_t focusPosition = 0;
-uint8_t focusRow = 0;
+bool beat = false;
 uint8_t ledsAreShown = 0;
 bool buttonLowBlinkPressed = false;
 bool buttonFullBlinkPressed = false;
 bool buttonSnakePressed = false;
-unsigned long lastBeat;
+uint8_t noBeatCount = 0;
+bool pauseMode = false;
+
 void loop()
 {
 	// Analyze without delay
 	if (MSGEQ7.read(MSGEQ7_INTERVAL))
 	{
 		// Led strip output
-		filterValue = MSGEQ7.get(MSGEQ7_BASS);
-		beat = isBeat(filterValue);
-		lastBeat = millis();
+		//filterValue = MSGEQ7.get(MSGEQ7_BASS);
+		if (!beat) beat = isBeat(MSGEQ7.get(MSGEQ7_BASS));
+		//beat = isBeat(filterValue);
+		// Was there a beat since last time we updated the leds?
 	
 	}
 
 	// Change color every 20ms
-	EVERY_N_MILLIS(20) 
-	{ 
-		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
-		{
-			ledControl.increment_color_hue();
-		}
+	//EVERY_N_MILLIS(20) 
+	//{ 
+	//	if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
+	//	{
+	//		ledControl.increment_color_hue();
+	//	}
 
-	}
-	//EVERY_N_SECONDS(10)
-	//{
-		//buttonLowBlinkPressed = !buttonLowBlinkPressed;
-		//buttonFullBlinkPressed = !buttonFullBlinkPressed;
-		//buttonSnakePressed= !buttonSnakePressed;
 	//}
 
-	EVERY_N_MILLIS(30)
+	EVERY_N_MILLIS(20)
 	{
-		FastLED.show();
-		ledControl.set_ledsAreShown();
-	}
-
-
-	EVERY_N_SECONDS(5)
-	{
-		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
-		{
-			ledControl.switch_disco_pattern();
-		}
 		
-	}
-	//if (millis() - lastBeat < MUSIC_ON_LIMIT)
-	//{
-		if (buttonLowBlinkPressed)
+		if (beat) 
+		{
+			noBeatCount = 0;
+			pauseMode = false;
+		}
+		else
+		{
+			if (!pauseMode)
+			{
+				noBeatCount++;
+				pauseMode = noBeatCount > 200; // 6 seconds since last beat
+			}
+		}
+		if (pauseMode)
+		{
+			ledControl.show_pause_pattern();
+		}
+		else if (buttonLowBlinkPressed)
 		{
 			ledControl.show_user_low_pattern(beat);
+			//ledControl.show_user_snake_pattern();
 		} 
 		else if (buttonFullBlinkPressed)
 		{
@@ -180,15 +152,26 @@ void loop()
 		else {
 			ledControl.show_disco_pattern(beat);
 		}
-	/*}
-	else
-	{
-		ledControl.show_pause_pattern();
-	}*/
-	
+		FastLED.show();
+		ledControl.set_ledsAreShown();
+		beat = false;
+	}
 
-	
-	
+
+	EVERY_N_SECONDS(5)
+	{
+		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed && !pauseMode)
+		{
+			uint8_t state = ledControl.switch_disco_pattern();
+			Serial.println(state);
+		}
+		if (pauseMode)
+		{
+			uint8_t state = ledControl.switch_pasue_pattern();
+			Serial.println(state);
+		}
+		
+	}
 	
 
 	// Call the current pattern function once, updating the 'leds' array

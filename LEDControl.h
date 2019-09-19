@@ -17,26 +17,52 @@
 //#define NUM_LEDS    144 // 50 LEDS PER STRIP // 11 LEDS PER PLANK IN BENCH
 #define NUM_LEDS 350
 #define NUM_LEDS_PER_ROW 50
-#define NUM_LED_ROWS 2
+#define NUM_LED_ROWS 7
 
 #define BRIGHTNESS         255
 #define FRAMES_PER_SECOND  600
 
 #define VALUE_MAX 255
 #define SATURATION_MAX 255
+#define HUE_MAX 255
 
 
 #define OFFSET_BACK 72
 
+#define DISCO_FULL_OFFSET 0
+#define DISCO_CHANGE 0
+#define DISCO_PULSE 1
+#define DISCO_TOGGLE 2
+#define NUM_DISCO_FULL 3
+
+#define DISCO_FILL_OFFSET 3
+#define DISCO_UPWARDS 0
+#define DISCO_DOWNWARDS 1
+#define DISCO_UPWARDS_FILL 2
+#define DISCO_DOWNWARDS_FILL 3
+#define NUM_DISCO_FILL 4
+
+#define DISCO_SNAKE_OFFSET 8
+#define DISCO_SINGLE_SNAKE 0
+#define DISCO_DOUBLE_SNAKE_ROWS 1
+#define NUM_DISCO_SNAKE 2
+
+#define PAUSE_RAINBOW_LAYING 0
+#define PAUSE_RAINBOW_STANDING 1
+#define PAUSE_FILL_SNAKE 2
+#define PAUSE_DOUBLE_SNAKE 3
+
+#define NUM_PAUSE_PATTERNS 4
 
 
 class LEDControl {
 public:
 	LEDControl(CRGB* leds): leds(leds), 
-							pausePattern(RAINBOW), 
+							pausePattern(PAUSE_RAINBOW_LAYING), 
 							discoPattern(DISCO_CHANGE), 
 							nextDiscoPattern(DISCO_CHANGE), 
-							toggleBeat(true), 
+							toggleBeat(true),
+							fillSnakeWithColor(false), 
 							focusPosition(0),
 							focusRow(0),
 							snakeRunning(false),
@@ -50,7 +76,8 @@ public:
 	void show_user_full_pattern(bool beat);
 	void show_user_snake_pattern();
 
-	void switch_disco_pattern();
+	uint8_t switch_disco_pattern();
+	uint8_t switch_pasue_pattern();
 
 	void set_color(CHSV color);
 	void set_color(uint8_t gHue, uint8_t gSat, uint8_t gVal);
@@ -65,17 +92,19 @@ public:
 
 	 // Set color functions
 	void set_strip(uint8_t strip_number);
+	void set_row(uint8_t row);
+	void set_row(uint8_t row, CHSV& color);
 	void set_each_strip_with_color_diff(uint16_t delay_time, uint8_t hue, uint8_t hue_diff);
 	void set_tile(uint8_t tile_number);
-	void set_column_seat(uint8_t column_number);
-	void set_column_back(uint8_t column_number);
+	void set_column(uint8_t column_number);
+	void set_column(uint8_t column_number, CHSV& color);
 	void set_pixel(uint8_t row, uint8_t column);
 	void set_pixel(uint16_t pos);
 	void set_rainbow_standing();
 	void set_rainbow_laying();
 
 	// Fill color functions
-	void fill_num_leds_solid(uint16_t numToFill);
+	void fill_all_leds_solid();
 	void fill_strip(uint8_t strip_number, uint16_t delay_time);
 	void fill_tile(uint8_t tile_number, uint16_t delay_time);
 	void fill_column_seat(uint8_t column_number, uint16_t delay_time);
@@ -96,23 +125,32 @@ public:
 
 	void four_tile_show(uint16_t delay_time);
 
+	void double_row_snake(CHSV& color);
+	void single_snake(CHSV& color);
+
 private:
 	CRGB* leds;	
 
-	int num_leds_col;
-	int num_leds_row;
-
 	CHSV color;
 
-	enum {RAINBOW, SNAKE, STROLE} pausePattern;
-	enum {DISCO_CHANGE, DISCO_PULSE, DISCO_TOGGLE, DISCO_SNAKE, DISCO_UPWARDS} discoPattern, nextDiscoPattern;
+	uint8_t pausePattern;
+	//enum {RAINBOW_LAYING, RAINBOW_STANDING, DOUBLE_SNAKE, FILL_SNAKE} pausePattern;
+	//enum discoPattern_t {DISCO_CHANGE = 0, DISCO_PULSE, DISCO_TOGGLE, 
+	//					DISCO_SNAKE = 3, DISCO_DOUBLE_SNAKE_ROWS,
+	//					DISCO_UPWARDS = 5, DISCO_UPWARDS_FILL, DISCO_DOWNWARDS, DISCO_DOWNWARDS_FILL} discoPattern, nextDiscoPattern;
+
+	uint8_t discoPattern, nextDiscoPattern;
+	uint8_t pseudoRandomNumber;
 
 	bool ledsAreShown;
 	unsigned long lastChange;
 	bool toggleBeat;
+	bool fillSnakeWithColor;
 	uint16_t focusPosition = 0;
 	uint8_t focusRow = 0;
+	uint8_t focusColumn = 0;
 	bool snakeRunning;
+	uint8_t maxColorValue;
 };
 
 

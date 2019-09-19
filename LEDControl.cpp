@@ -10,17 +10,38 @@ void LEDControl::show_pause_pattern()
 {
 	switch (pausePattern)
 	{
-	case RAINBOW:
-		//set_rainbow_laying();
-		color.hue = 0;
-		color.val = 100;
-		fill_num_leds_solid(NUM_LEDS);
+	case PAUSE_RAINBOW_LAYING:
+		increment_color_hue();
+		set_rainbow_laying();
 		break;
-	
-	case SNAKE:
-		fadeToBlackBy(leds, NUM_LEDS, 20);
-		//int pos = beatsin16(13, 0, NUM_LEDS - 1);
-		//leds[pos] += CHSV(gHue, 255, 192);
+	case PAUSE_RAINBOW_STANDING:
+		increment_color_hue();
+		set_rainbow_standing();
+		break;
+	case PAUSE_DOUBLE_SNAKE:
+		set_color_val(0);
+		fill_all_leds_solid();
+		set_color_val(VALUE_MAX);
+		double_row_snake(color);
+		break;
+	case PAUSE_FILL_SNAKE:
+		if (focusPosition == 0)
+		{
+			fillSnakeWithColor = !fillSnakeWithColor;
+			
+		}
+		if (fillSnakeWithColor)
+		{
+			set_color_val(0);
+			fill_all_leds_solid();
+			set_color_val(VALUE_MAX);
+			single_snake(color);
+		}
+		else
+		{
+			set_color_val(0);
+			single_snake(color);
+		}
 		break;
 
 
@@ -38,25 +59,38 @@ void LEDControl::show_disco_pattern(bool beat)
 	}
 	if (beat && nextDiscoPattern != discoPattern)
 	{
-		discoPattern = nextDiscoPattern;
+		if (discoPattern == DISCO_FILL_OFFSET + DISCO_UPWARDS
+		|| discoPattern == DISCO_FILL_OFFSET + DISCO_UPWARDS_FILL
+		|| discoPattern == DISCO_FILL_OFFSET + DISCO_DOWNWARDS
+		|| discoPattern == DISCO_FILL_OFFSET + DISCO_DOWNWARDS_FILL)
+		{
+			if (focusPosition == NUM_LED_ROWS-2) discoPattern = nextDiscoPattern;
+		}
+		else
+		{
+			discoPattern = nextDiscoPattern;
+			focusPosition = 0;
+			focusRow = 0;
+			focusColumn = 0;
+		}
 	}
 	switch(discoPattern)
 	{
-		case DISCO_CHANGE:
+		case DISCO_FULL_OFFSET + DISCO_CHANGE:
 			if (beat)
 			{
 				increment_color_hue(50);
 				set_color_val(VALUE_MAX);
-				fill_num_leds_solid(NUM_LEDS);
+				fill_all_leds_solid();
 			
 			}
 			break;
-		case DISCO_PULSE:
+		case DISCO_FULL_OFFSET + DISCO_PULSE:
 			if(beat){
 				ledsAreShown = false;
 				increment_color_hue(20);
 				set_color_val(VALUE_MAX);
-				fill_num_leds_solid(NUM_LEDS);
+				fill_all_leds_solid();
 				lastChange = 0;
 			}
 			else
@@ -64,32 +98,33 @@ void LEDControl::show_disco_pattern(bool beat)
 				if(ledsAreShown)
 				{
 					fade_color();
-					fill_num_leds_solid(NUM_LEDS);
+					fill_all_leds_solid();
 					ledsAreShown = false;				
 				}
 			}
 			break;
-		case DISCO_TOGGLE:
+		case DISCO_FULL_OFFSET + DISCO_TOGGLE:
 			if(beat && ledsAreShown){
 				ledsAreShown = false;
 				if (toggleBeat)
 				{
+					increment_color_hue(10);
 					set_color_val(VALUE_MAX);
 				}
 				else
 				{
 					set_color_val(0);
 				}
-				fill_num_leds_solid(NUM_LEDS);
+				fill_all_leds_solid();
 				toggleBeat = !toggleBeat;
 			}
 			break;
-		case DISCO_SNAKE:
+		case DISCO_SNAKE_OFFSET + DISCO_SINGLE_SNAKE:
 			if(beat)
 			{
 				ledsAreShown = 0;
 				color.val = VALUE_MAX;
-				fill_num_leds_solid(NUM_LEDS);
+				fill_all_leds_solid();
 
 			}
 			else
@@ -99,10 +134,8 @@ void LEDControl::show_disco_pattern(bool beat)
 					ledsAreShown = 0;
 					set_color_val(40);
 					// Set all LEDs to a low brightness state
-					fill_num_leds_solid(NUM_LEDS);
-					
+					fill_all_leds_solid();
 					if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
-
 					set_color_val(VALUE_MAX);
 					set_pixel(focusPosition);
 					set_pixel(NUM_LEDS-focusPosition-1);
@@ -110,18 +143,84 @@ void LEDControl::show_disco_pattern(bool beat)
 			}
 			break;
 
-		case DISCO_UPWARDS:
+		case DISCO_FILL_OFFSET + DISCO_UPWARDS:
+			if(beat)
+			{
+				// Turn of all LEDs
+				increment_color_hue(40);
+				set_color_val(0);
+				fill_all_leds_solid();		
+				// Turn on specific row
+				set_color_val(VALUE_MAX);
+				set_row(focusRow);
+				if(++focusRow > (NUM_LED_ROWS-1)) {focusRow= 0;}
+			}
+			break;
+
+		case DISCO_FILL_OFFSET + DISCO_DOWNWARDS:
 			if(beat)
 			{
 				// Turn of all LEDs
 				set_color_val(0);
-				fill_num_leds_solid(NUM_LEDS);
-				
-								
+				fill_all_leds_solid();		
 				// Turn on specific row
 				set_color_val(VALUE_MAX);
-				if(++focusRow>(NUM_LED_ROWS-1)) {focusRow= 0;}
-				set_strip(focusRow);
+				set_row(NUM_LED_ROWS - 1 - focusRow);
+				if(++focusRow > (NUM_LED_ROWS-1)) {focusRow= 0;}
+			}
+			break;
+
+
+		case DISCO_FILL_OFFSET + DISCO_UPWARDS_FILL:
+			if (!focusRow)
+			{
+				set_color_val(0);
+				fill_all_leds_solid();
+			}
+			if (beat)
+			{
+				set_color_val(VALUE_MAX);
+				set_row(focusRow);
+				if(++focusRow > (NUM_LED_ROWS-1)) {focusRow= 0;}
+			}
+			break;
+
+		case DISCO_FILL_OFFSET + DISCO_DOWNWARDS_FILL:
+			if (!focusRow)
+			{
+				set_color_val(0);
+				fill_all_leds_solid();
+			}
+			if (beat)
+			{
+				set_color_val(VALUE_MAX);
+				set_row(NUM_LED_ROWS - 1 - focusRow);
+				if(++focusRow > (NUM_LED_ROWS-1)) {focusRow= 0;}
+			}
+			break;
+
+		case DISCO_SNAKE_OFFSET + DISCO_DOUBLE_SNAKE_ROWS:
+			if(beat)
+			{
+				increment_color_hue(50);
+				ledsAreShown = 0;
+				color.val = 30;
+				maxColorValue = VALUE_MAX;
+				fill_all_leds_solid();
+				set_color_val(maxColorValue);
+				double_row_snake(color);
+			}
+			else
+			{
+				if(ledsAreShown)
+				{
+					set_color_val(30);
+					fill_all_leds_solid();
+					set_color_val(maxColorValue);
+					fade_color();
+					maxColorValue = color.val;
+					double_row_snake(color);
+				}
 			}
 			break;
 	}
@@ -137,7 +236,7 @@ void LEDControl::show_user_low_pattern(bool beat)
 	if (beat)
 	{
 		color.value = LOW_BLINK_VALUE;
-		fill_num_leds_solid(NUM_LEDS);
+		fill_all_leds_solid();
 		ledsAreShown = false;
 	}
 	else
@@ -145,7 +244,7 @@ void LEDControl::show_user_low_pattern(bool beat)
 		if (ledsAreShown)
 		{
 			color.value = LOW_NO_BLINK_VALUE;
-			fill_num_leds_solid(NUM_LEDS);
+			fill_all_leds_solid();
 		}
 	}
 	
@@ -161,7 +260,7 @@ void LEDControl::show_user_full_pattern(bool beat)
 	if (beat)
 	{
 		color.value = VALUE_MAX;
-		fill_num_leds_solid(NUM_LEDS);
+		fill_all_leds_solid();
 		ledsAreShown = false;
 	}
 	else
@@ -169,7 +268,7 @@ void LEDControl::show_user_full_pattern(bool beat)
 		if (ledsAreShown)
 		{
 			color.value = VALUE_MAX-50;
-			fill_num_leds_solid(NUM_LEDS);
+			fill_all_leds_solid();
 		}
 	}
 }
@@ -186,38 +285,62 @@ void LEDControl::show_user_snake_pattern()
 	{
 		ledsAreShown = false;
 		color.value = 0;
-		fill_num_leds_solid(NUM_LEDS);
+		fill_all_leds_solid();
 		color.value = VALUE_MAX;
-		set_pixel(focusPosition++);
-		set_pixel(focusPosition++);
+		for (uint8_t i = 0; i < 6; i++)
+		{
+			set_pixel(focusPosition++);
+		}
 	}
-	if (focusPosition >= NUM_LEDS-2)
+	if (focusPosition >= NUM_LEDS-6)
 	{
 		snakeRunning = false;
 	}
 }
 
-void LEDControl::switch_disco_pattern()
+uint8_t LEDControl::switch_pasue_pattern()
 {
+	pseudoRandomNumber += 23;
+	if (pseudoRandomNumber > 200)
+	{
+		pseudoRandomNumber -= 200; 
+	}
+	focusColumn = 0;
+	focusRow = 0;
+	focusPosition = 0;
+	pausePattern = pseudoRandomNumber % NUM_PAUSE_PATTERNS;
+	return pausePattern;
+}
+
+uint8_t LEDControl::switch_disco_pattern()
+{
+	pseudoRandomNumber += 17;
+	if (pseudoRandomNumber > 200)
+	{
+		pseudoRandomNumber -= 200; 
+	}
 	switch (discoPattern)
 	{
+		// cases where all leds are shown simultaneously
 	case DISCO_CHANGE:
-		nextDiscoPattern = DISCO_PULSE;
-		break;
 	case DISCO_PULSE:
-		nextDiscoPattern = DISCO_TOGGLE;
+	case DISCO_TOGGLE:	
+		nextDiscoPattern = DISCO_FILL_OFFSET + pseudoRandomNumber % NUM_DISCO_FILL;
 		break;
-	case DISCO_TOGGLE:
-		nextDiscoPattern = DISCO_SNAKE;
+	case DISCO_SNAKE_OFFSET + DISCO_SINGLE_SNAKE:
+	case DISCO_SNAKE_OFFSET + DISCO_DOUBLE_SNAKE_ROWS:
+		nextDiscoPattern = DISCO_FULL_OFFSET + pseudoRandomNumber % NUM_DISCO_FULL;
 		break;
-	case DISCO_SNAKE:
-		nextDiscoPattern = DISCO_UPWARDS;
+	case DISCO_FILL_OFFSET + DISCO_UPWARDS:
+	case DISCO_FILL_OFFSET + DISCO_DOWNWARDS:
+	case DISCO_FILL_OFFSET + DISCO_UPWARDS_FILL:
+	case DISCO_FILL_OFFSET + DISCO_DOWNWARDS_FILL:
+		nextDiscoPattern = DISCO_SNAKE_OFFSET + pseudoRandomNumber % NUM_DISCO_SNAKE;
 		break;
-	case DISCO_UPWARDS:
-		nextDiscoPattern = DISCO_CHANGE;
 	default:
 		break;
 	}
+	return nextDiscoPattern;
 }
 void LEDControl::set_ledsAreShown()
 {
@@ -266,21 +389,25 @@ void LEDControl::fade_color()
 	else 					{ color.value = 30; }
 }
 
-void LEDControl::fill_num_leds_solid(uint16_t numToFill)
+void LEDControl::fill_all_leds_solid()
 {
-	fill_solid(leds, numToFill, color);
+	fill_solid(leds, NUM_LEDS, color);
 }
 
-void LEDControl::set_strip(uint8_t strip_number)
+void LEDControl::set_row(uint8_t row)
 {
-	
 	for (uint8_t i = 0; i<NUM_LEDS_PER_ROW; i++)
-
 	{
-		leds[strip_number * NUM_LEDS_PER_ROW + i] = color;
+		leds[row * NUM_LEDS_PER_ROW + i] = this->color;
 	}
-	//FastLED.show();
-
+}
+void LEDControl::set_row(uint8_t row, CHSV& color)
+{
+	if (row > NUM_LED_ROWS-1) return; 
+	for (uint8_t i = 0; i<NUM_LEDS_PER_ROW; i++)
+	{
+		leds[row * NUM_LEDS_PER_ROW + i] = color;
+	}
 }
 
 void LEDControl::set_each_strip_with_color_diff(uint16_t delay_time, uint8_t hue, uint8_t hue_diff)
@@ -325,35 +452,51 @@ void LEDControl::set_tile(uint8_t tile_number)
 	//FastLED.show();
 }
 
-void LEDControl::set_column_seat(uint8_t column_number)
+
+//11 ---15
+//10 --- 6
+// 1 --- 5
+
+void LEDControl::set_column(uint8_t column_number)
 {
-	this->leds[column_number] = color;
-	this->leds[23 - column_number] = color;
-	this->leds[24 + column_number] = color;
-	this->leds[47 - column_number] = color;
-	this->leds[48 + column_number] = color;
-	this->leds[71 - column_number] = color;
-	//FastLED.show();
+	if (column_number > NUM_LEDS_PER_ROW - 1) return;
+	for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
+	{
+		if (row % 2 == 1)
+		{
+			leds[NUM_LEDS_PER_ROW * (row + 1) - 1 - column_number] = this->color;
+		}
+		else
+		{
+			leds[NUM_LEDS_PER_ROW * row + column_number] = this->color;
+		}
+	}
 }
 
-void LEDControl::set_column_back(uint8_t column_number)
+void LEDControl::set_column(uint8_t column_number, CHSV& color)
 {
-	this->leds[column_number + OFFSET_BACK] = color;
-	this->leds[23 - column_number + OFFSET_BACK] = color;
-	this->leds[24 + column_number + OFFSET_BACK] = color;
-	this->leds[47 - column_number + OFFSET_BACK] = color;
-	this->leds[48 + column_number + OFFSET_BACK] = color;
-	this->leds[71 - column_number + OFFSET_BACK] = color;
-	//FastLED.show();
+	if (column_number > NUM_LEDS_PER_ROW - 1) return;
+	for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
+	{
+		if (row % 2 == 1)
+		{
+			leds[NUM_LEDS_PER_ROW * (row + 1) - 1 - column_number] = color;
+		}
+		else
+		{
+			leds[NUM_LEDS_PER_ROW * row + column_number] = color;
+		}
+	}
 }
 
 void LEDControl::set_pixel(uint8_t row, uint8_t column)
 {
+	if (column > NUM_LEDS_PER_ROW - 1) return;
+	if (row > NUM_LED_ROWS - 1) return;
 	if ((row % 2) == 0)
-		this->leds[column + (row * 12)] = color;
+		this->leds[column + (row * NUM_LEDS_PER_ROW)] = color;
 	else
-		this->leds[11 - column + (row * 12)] = color;
-	//FastLED.show();
+		this->leds[NUM_LEDS_PER_ROW - 1 - column + (row * NUM_LEDS_PER_ROW)] = color;
 }
 void LEDControl::set_pixel(uint16_t pos)
 {
@@ -468,8 +611,8 @@ void LEDControl::fill_from_left(uint16_t delay_time)
 {
 	for (uint8_t column = 0; column < 12; column++)
 	{
-		set_column_back(column);
-		set_column_seat(column);
+
+		set_column(column);
 		delay(delay_time);
 	}
 }
@@ -478,8 +621,8 @@ void LEDControl::fill_from_right(uint16_t delay_time)
 {
 	for (int8_t column = 11; column >= 0; column--)
 	{
-		set_column_back(column);
-		set_column_seat(column);
+
+		set_column(column);
 		delay(delay_time);
 	}
 }
@@ -516,11 +659,17 @@ void LEDControl::four_tile_show(uint16_t delay_time)
 void LEDControl::set_rainbow_standing()
 {
 	CHSV color_rainbow = color;
-	for (uint8_t column = 0; column < 12; column++)
+	for (uint8_t column = 0; column < NUM_LEDS_PER_ROW; column++)
 	{
-		//set_column_seat(column, color_rainbow);
-		//set_column_back(column, color_rainbow);
-	    color_rainbow.hue + 21 > 255 ? color_rainbow.hue = color_rainbow.hue + 21 - 255 : color_rainbow.hue += 21;
+		set_column(column, color_rainbow);
+		if (color_rainbow.hue > HUE_MAX - HUE_MAX / NUM_LEDS_PER_ROW)
+		{
+			color_rainbow.hue = color_rainbow.hue - HUE_MAX + HUE_MAX / NUM_LEDS_PER_ROW;
+		}
+		else
+		{
+			color_rainbow.hue += HUE_MAX / NUM_LEDS_PER_ROW;
+		}
 	}
 }
 
@@ -529,10 +678,39 @@ void LEDControl::set_rainbow_laying()
 	CHSV color_rainbow = color;
 	for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
 	{
-		set_strip(row);
-		color_rainbow.hue + 21 > 255 ? color_rainbow.hue = color_rainbow.hue + 21 - 255 : color_rainbow.hue += 21;
-		color = color_rainbow;
+		set_row(row, color_rainbow);
+		if (color_rainbow.hue > HUE_MAX - HUE_MAX / NUM_LED_ROWS)
+		{
+			color_rainbow.hue = color_rainbow.hue - HUE_MAX + HUE_MAX / NUM_LED_ROWS;
+		}
+		else
+		{
+			color_rainbow.hue += HUE_MAX / NUM_LED_ROWS;
+		}
+		//color_rainbow.hue + 21 > 255 ? color_rainbow.hue = color_rainbow.hue + 21 - 255 : color_rainbow.hue += 21;
 	}
 }
 
+void LEDControl::double_row_snake(CHSV& color)
+{
+	CHSV fadeColor = color;
+	set_column(focusColumn);
+	set_column(NUM_LEDS_PER_ROW-focusColumn-1);
+	for (int i = 0; i < 5; i++)
+	{
+		if (focusColumn - i >= 0 && focusColumn + i < NUM_LEDS_PER_ROW)
+		{
+			fadeColor.val = color.val / (i+1);
+			set_column(focusColumn-i, fadeColor);
+			set_column(NUM_LEDS_PER_ROW-focusColumn-1+i, fadeColor);
+		}
+	}
+	if(++focusColumn > NUM_LEDS_PER_ROW-1) {focusColumn = 0;}
+}
+
+void LEDControl::single_snake(CHSV& color)
+{
+	if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
+	set_pixel(focusPosition);
+}
 
