@@ -6,7 +6,7 @@
 // If the music is within a beat or not
 uint8_t isBeat(uint16_t filterval){
 	static uint8_t beat=0; //1 if beat, 0 if not beat
-	static uint16_t beatVal=200;
+	static uint16_t beatVal=MIN_BEAT_VAL;
 	static uint16_t noBeatCount=0;
 
 	//find beat, iterate through output list
@@ -27,7 +27,7 @@ uint8_t isBeat(uint16_t filterval){
 	else {//beat==1
 		//4 is nice! changed to 5
 		// if filterval is less than beatVal/4
-		if ((filterval*2.5<beatVal) && (noBeatCount >= NO_BEAT_COUNT)){ //if value on filter is X times lower than it was when the beat was detected, count as no beat.
+		if ((filterval*4<beatVal) && (noBeatCount >= NO_BEAT_COUNT)){ //if value on filter is X times lower than it was when the beat was detected, count as no beat.
 			beat=0;
 			noBeatCount=0;
 			return 0;
@@ -37,17 +37,18 @@ uint8_t isBeat(uint16_t filterval){
 			noBeatCount++;
 		}
 		
-		if (noBeatCount>=NO_BEAT_COUNT){
+		//if (noBeatCount>=40){
 			if(filterval>beatVal){
 				beatVal=filterval;
 				noBeatCount=0;
-				beat=1;
-				return 1;
+				//beat=1;
+				//return 1;
 			}
-		}
+		//}
 
 		if (noBeatCount>LONG_RESET_TIME){ //no beat for very long time, increase indexbeat to so that next iteration will check all filters 
 			beat=0;
+			beatVal = MIN_BEAT_VAL;
 		}
 	}
 	return 0;
