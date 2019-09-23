@@ -23,9 +23,9 @@
 #define BRIGHTNESS         255
 #define FRAMES_PER_SECOND  600
 
-#define VALUE_MAX 255
-#define SATURATION_MAX 255
-#define HUE_MAX 255
+#define LEDS_VALUE_MAX 255
+#define LEDS_SATURATION_MAX 255
+#define LEDS_HUE_MAX 255
 
 
 #define OFFSET_BACK 72
@@ -53,8 +53,11 @@
 #define PAUSE_FILL_SNAKE 2
 #define PAUSE_DOUBLE_SNAKE 3
 #define PAUSE_UKA_LETTERS 4
+#define PAUSE_FILL_SNAKE_RAINBOW 5
+#define PAUSE_SINGLE_ROW_SNAKE 6
+#define PAUSE_FILL_SINGLE_ROW_SNAKE 7
 
-#define NUM_PAUSE_PATTERNS 5
+#define NUM_PAUSE_PATTERNS 8
 
 
 class LEDControl {
@@ -87,16 +90,12 @@ public:
 	void increment_color_hue();
 	void increment_color_hue(uint8_t step);
 	void fade_color();
-	uint8_t get_color_hue();
-	const CHSV& get_color();
 
 	void set_ledsAreShown();
 
 	 // Set color functions
 	void set_row(uint8_t row);
 	void set_row(uint8_t row, CHSV& color);
-	void set_each_strip_with_color_diff(uint16_t delay_time, uint8_t hue, uint8_t hue_diff);
-	void set_tile(uint8_t tile_number);
 	void set_column(uint8_t column_number);
 	void set_column(uint8_t column_number, CHSV& color);
 	void set_pixel(uint8_t row, uint8_t column);
@@ -106,6 +105,7 @@ public:
 
 	// Fill color functions
 	void fill_all_leds_solid();
+	void clear_all_leds();
 	void fill_strip(uint8_t strip_number, uint16_t delay_time);
 	void fill_tile(uint8_t tile_number, uint16_t delay_time);
 	void fill_column_seat(uint8_t column_number, uint16_t delay_time);
@@ -124,9 +124,9 @@ public:
 	void empty_strip_downwards(uint16_t delay_time);
 	void empty_strip_upwards(uint16_t delay_time);
 
-	void four_tile_show(uint16_t delay_time);
 
 	void double_row_snake(CHSV& color);
+	void single_row_snake(CHSV& color);
 	void single_snake(CHSV& color);
 	void uka_letters(uint8_t offset);
 
@@ -136,16 +136,10 @@ private:
 	CHSV color;
 
 	uint8_t pausePattern;
-	//enum {RAINBOW_LAYING, RAINBOW_STANDING, DOUBLE_SNAKE, FILL_SNAKE} pausePattern;
-	//enum discoPattern_t {DISCO_CHANGE = 0, DISCO_PULSE, DISCO_TOGGLE, 
-	//					DISCO_SNAKE = 3, DISCO_DOUBLE_SNAKE_ROWS,
-	//					DISCO_UPWARDS = 5, DISCO_UPWARDS_FILL, DISCO_DOWNWARDS, DISCO_DOWNWARDS_FILL} discoPattern, nextDiscoPattern;
-
 	uint8_t discoPattern, nextDiscoPattern;
 	uint8_t pseudoRandomNumber;
 
 	bool ledsAreShown;
-	unsigned long lastChange;
 	bool toggleBeat;
 	bool fillSnakeWithColor;
 	uint16_t focusPosition = 0;

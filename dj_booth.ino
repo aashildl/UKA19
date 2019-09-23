@@ -10,7 +10,6 @@
 #include <FastLED.h>
 #include "MSGEQ7.h"
 #include "beat.h"
-#include "disco.h"
 
 FASTLED_USING_NAMESPACE
 #if defined(FASTLED_VERSION) && (FASTLED_VERSION < 3001000)
@@ -40,9 +39,9 @@ LEDControl ledControl(leds);
 
 
 // Four buttons for controlling LEDS
-uint8_t button_fade_pin; // Button 1: Fade
-uint8_t button_strobe_pin;// Button 2: Strobe
-uint8_t button_toggle_pin; // Button 3: Toggle
+uint8_t button_low_pin; // Button 1: Low blink
+uint8_t button_uka_pin;// Button 2: UKA
+uint8_t button_snake_pin; // Button 3: Snake
 uint8_t button_surprise_pin; // Button 4: Surprise
 
 
@@ -55,9 +54,9 @@ void setup() {
 	delay(3000); 
 	Serial.begin(115200);
 
-    pinMode(button_fade_pin, INPUT); // pullup?
-    pinMode(button_strobe_pin, INPUT); // pullup?
-    pinMode(button_toggle_pin, INPUT); // pullup?
+    pinMode(button_low_pin, INPUT); // pullup?
+    pinMode(button_uka_pin, INPUT); // pullup?
+    pinMode(button_snake_pin, INPUT); // pullup?
     pinMode(button_surprise_pin, INPUT); // pullup?
 
 	// FastLED setup
@@ -84,11 +83,9 @@ void setup() {
 	
 }
 
-
 bool beat = false;
-uint8_t ledsAreShown = 0;
 bool buttonLowBlinkPressed = false;
-bool buttonFullBlinkPressed = false;
+bool buttonUKAPressed = false;
 bool buttonSnakePressed = false;
 uint8_t noBeatCount = 0;
 bool pauseMode = false;
@@ -99,22 +96,8 @@ void loop()
 	if (MSGEQ7.read(MSGEQ7_INTERVAL))
 	{
 		// Led strip output
-		//filterValue = MSGEQ7.get(MSGEQ7_BASS);
 		if (!beat) beat = isBeat(MSGEQ7.get(MSGEQ7_BASS));
-		//beat = isBeat(filterValue);
-		// Was there a beat since last time we updated the leds?
-	
 	}
-
-	// Change color every 20ms
-	//EVERY_N_MILLIS(20) 
-	//{ 
-	//	if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed)
-	//	{
-	//		ledControl.increment_color_hue();
-	//	}
-
-	//}
 
 	EVERY_N_MILLIS(20)
 	{
@@ -139,9 +122,8 @@ void loop()
 		else if (buttonLowBlinkPressed)
 		{
 			ledControl.show_user_low_pattern(beat);
-			//ledControl.show_user_snake_pattern();
 		} 
-		else if (buttonFullBlinkPressed)
+		else if (buttonUKAPressed)
 		{
 			ledControl.show_user_full_pattern(beat);
 		}
@@ -158,92 +140,19 @@ void loop()
 	}
 
 
-	EVERY_N_SECONDS(5)
+	EVERY_N_SECONDS(10)
 	{
-		if (!buttonLowBlinkPressed && !buttonFullBlinkPressed && !buttonSnakePressed && !pauseMode)
+		if (!buttonLowBlinkPressed && !buttonUKAPressed && !buttonSnakePressed && !pauseMode)
 		{
 			uint8_t state = ledControl.switch_disco_pattern();
-			Serial.println(state);
+			//Serial.println(state);
 		}
 		if (pauseMode)
 		{
 			uint8_t state = ledControl.switch_pasue_pattern();
-			Serial.println(state);
+			//Serial.println(state);
 		}
 		
 	}
 	
-
-	// Call the current pattern function once, updating the 'leds' array
-	//fill_sideways();
-	//gPatterns[gCurrentPatternNumber]();
-
-
-	// send the 'leds' array out to the actual LED strip
-	//FastLED.show();
-	// insert a delay to keep the framerate modest
-	//FastLED.delay(1000 / FRAMES_PER_SECOND);
-
-
-	//// do some periodic updates
-	//if (!sensor_changed_to_low)
-	//{
-	//EVERY_N_MILLISECONDS(20) { gHue++; } // slowly cycle the "base color" through the rainbow
-	
-
-	// EVERY_N_SECONDS(10) { nextPattern(); } // change patterns periodically
-	//EVERY_N_BSECONDS(1) 
-	//{
-	//	uint8_t _dummy;
-	//}
 }
-
-// #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
-
-// void nextPattern()
-// {
-// 	// add one to the current pattern number, and wrap around at the end
-// 	gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE(gPatterns);
-// }
-
-// void rainbow_standing()
-// {
-// 	set_rainbow_standing(leds, CHSV(gHue, 255, 255));
-// }
-
-// void rainbow_laying()
-// {
-// 	set_rainbow_laying(leds, CHSV(gHue, 255, 255));
-// }
-
-// void sinelon()
-// {
-// 	// a colored dot sweeping back and forth, with fading trails
-// 	fadeToBlackBy(leds, NUM_LEDS, 20);
-// 	int pos = beatsin16(13, 0, NUM_LEDS - 1);
-// 	leds[pos] += CHSV(gHue, 255, 192);
-// }
-
-// void strole_up_and_down()
-// {
-// 	strole_strip_upwards(leds, 50, CHSV(gHue, 255, 255));
-// 	delay(1000);
-// 	strole_strip_downwards(leds, 50, CHSV(gHue, 255, 255));
-// 	delay(1000);
-// 	gHue += 100;
-// }
-
-// void fill_sideways()
-// {
-// 	fill_from_left(leds, 50, CHSV(gHue, 255, 255));
-// 	delay(4000);
-// 	gHue += 100;
-// 	fill_from_right(leds, 50, CHSV(gHue, 255, 255));
-// 	delay(4000);
-	
-// }
-
-// void four_tiles_blink_inverted()
-// {
-// 	four_tile_show(leds, 300, CHSV(gHue, 255, 255));
-// }
