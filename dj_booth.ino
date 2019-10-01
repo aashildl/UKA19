@@ -20,7 +20,7 @@ FASTLED_USING_NAMESPACE
 #define LED_DATA_PIN 3
 #define CHIPSET     WS2811
 
-#define MUSIC_ON_LIMIT 500 // show pause pattern if more than 5 seconds between beats
+#define MUSIC_ON_LIMIT 200 // show pause pattern if more than 6 seconds between beats
 
 #define LED_DITHER  255  // try 0 to disable flickering
 #define CORRECTION  TypicalLEDStrip
@@ -32,32 +32,55 @@ FASTLED_USING_NAMESPACE
 #define MSGEQ7_INTERVAL ReadsPerSecond(1000)
 #define MSGEQ7_SMOOTH false
 
+#define NUM_BUTTONS 3
+#define LOW_BUTTON 1
+#define UKA_BUTTON 0
+#define SNAKE_BUTTON 2
+
 CMSGEQ7<MSGEQ7_SMOOTH, pinReset, pinStrobe, pinAnalogLeft, pinAnalogRight> MSGEQ7;
  
 CRGB leds[NUM_LEDS];
 LEDControl ledControl(leds);
 
+#define BUTTON_RED_PIN 12
+#define BUTTON_GREEN_PIN 11
+#define BUTTON_BLUE_PIN 10
 
-// Four buttons for controlling LEDS
-uint8_t button_low_pin; // Button 1: Low blink
-uint8_t button_uka_pin;// Button 2: UKA
-uint8_t button_snake_pin; // Button 3: Snake
-uint8_t button_surprise_pin; // Button 4: Surprise
+uint8_t buttonPins[NUM_BUTTONS] {BUTTON_RED_PIN, BUTTON_GREEN_PIN, BUTTON_BLUE_PIN};
+uint8_t buttonPressed[NUM_BUTTONS] {0, 0, 0};
+
+uint8_t beatOutputPin = 8;
+
+uint8_t checkButton(uint8_t buttonPin)
+{
+	// button is active low
+	return !digitalRead(buttonPin);
+}
+uint8_t anyButtonPressed()
+{
+	for (int button = 0; button < NUM_BUTTONS; button++)
+	{
+		if (buttonPressed[button]) 
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
 
 
-bool last_sensor_value;
-bool current_sensor_value;
-bool sensor_must_turn_high_again = false;
 
 void setup() {
 	// 3 second delay for recovery
 	delay(3000); 
 	Serial.begin(115200);
 
-    pinMode(button_low_pin, INPUT); // pullup?
-    pinMode(button_uka_pin, INPUT); // pullup?
-    pinMode(button_snake_pin, INPUT); // pullup?
-    pinMode(button_surprise_pin, INPUT); // pullup?
+	for (uint8_t button = 0; button < NUM_BUTTONS; button++)
+	{
+		pinMode(buttonPins[button], INPUT_PULLUP);
+	}
+	pinMode(13, OUTPUT);
+	pinMode(beatOutputPin, OUTPUT); 
 
 	// FastLED setup
 	FastLED.addLeds<CHIPSET, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(CORRECTION);
@@ -84,11 +107,9 @@ void setup() {
 }
 
 bool beat = false;
-bool buttonLowBlinkPressed = false;
-bool buttonUKAPressed = false;
-bool buttonSnakePressed = false;
 uint8_t noBeatCount = 0;
 bool pauseMode = false;
+
 
 void loop()
 {
@@ -101,9 +122,15 @@ void loop()
 
 	EVERY_N_MILLIS(20)
 	{
+		// button debounce check
+		for (int button = 0; button < NUM_BUTTONS; button++)
+		{
+			buttonPressed[button] = checkButton(buttonPins[button]);
+		}
 		
 		if (beat) 
 		{
+			digitalWrite(beatOutputPin, HIGH);
 			noBeatCount = 0;
 			pauseMode = false;
 		}
@@ -112,47 +139,51 @@ void loop()
 			if (!pauseMode)
 			{
 				noBeatCount++;
-				pauseMode = noBeatCount > 200; // 6 seconds since last beat
+				pauseMode = noBeatCount > MUSIC_ON_LIMIT; // 6 seconds since last beat
 			}
 		}
-		if (pauseMode)
-		{
-			ledControl.show_pause_pattern();
-		}
-		else if (buttonLowBlinkPressed)
+		
+		if (buttonPressed[LOW_BUTTON])
 		{
 			ledControl.show_user_low_pattern(beat);
 		} 
-		else if (buttonUKAPressed)
+		else if (buttonPressed[UKA_BUTTON])
 		{
 			ledControl.show_user_full_pattern(beat);
 		}
-		else if (buttonSnakePressed)
+		else if (buttonPressed[SNAKE_BUTTON])
 		{
 			ledControl.show_user_snake_pattern();
 		}
-		else {
+		else if (pauseMode)
+		{
+			ledControl.show_pause_pattern();
+		}
+		else 
+		{
 			ledControl.show_disco_pattern(beat);
 		}
 		FastLED.show();
 		ledControl.set_ledsAreShown();
 		beat = false;
+		digitalWrite(beatOutputPin, LOW);
 	}
 
 
 	EVERY_N_SECONDS(10)
 	{
-		if (!buttonLowBlinkPressed && !buttonUKAPressed && !buttonSnakePressed && !pauseMode)
+		if (!anyButtonPressed() && !pauseMode)
 		{
 			uint8_t state = ledControl.switch_disco_pattern();
 			//Serial.println(state);
 		}
+	}
+	EVERY_N_SECONDS(20)
+	{
 		if (pauseMode)
 		{
-			uint8_t state = ledControl.switch_pasue_pattern();
+			uint8_t state = ledControl.switch_pause_pattern();
 			//Serial.println(state);
 		}
-		
 	}
-	
 }
