@@ -599,7 +599,8 @@ void LEDControl::set_rainbow_diagonal()
 		for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
 		{
 			set_pixel(row, column, color_column);
-			if (color_rainbow.hue > LEDS_HUE_MAX - LEDS_HUE_MAX / NUM_LEDS_PER_ROW)
+			Serial.println(color_column.hue);
+			if (color_column.hue > LEDS_HUE_MAX - LEDS_HUE_MAX / NUM_LEDS_PER_ROW)
 			{
 				color_column.hue = color_column.hue - LEDS_HUE_MAX + LEDS_HUE_MAX / NUM_LEDS_PER_ROW;
 			}
