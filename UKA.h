@@ -5,7 +5,7 @@
 
 #define NUM_ROWS 7
 #define NUM_LETTER_COLS 32
-#define NUM_LETTER_COLS_SMALL 16
+#define NUM_LETTER_COLS_SMALL 17
 
 #define LARGE_LETTERS 0
 #define SMALL_LETTERS 1
@@ -47,7 +47,7 @@
 
 
 const uint32_t UKA_Letters [NUM_ROWS] = {1624007152, 1623615484, 830695356, 830596620, 453207564, 520513036, 235693580};
-const uint32_t UKA_Letters_small [NUM_ROWS] = {0, 341266, 35163, 20689, 20817, 8785, 0};
+const uint32_t UKA_Letters_small [NUM_ROWS] = {0, 35406, 35163, 20689, 20817, 8785, 0};
 
 bool getBit(uint8_t row, uint8_t position, uint8_t size) {
     if (size == LARGE_LETTERS)
