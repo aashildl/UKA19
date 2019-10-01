@@ -56,8 +56,9 @@
 #define PAUSE_FILL_SNAKE_RAINBOW 5
 #define PAUSE_SINGLE_ROW_SNAKE 6
 #define PAUSE_FILL_SINGLE_ROW_SNAKE 7
+#define PAUSE_RAINBOW_DIAGONAL 8
 
-#define NUM_PAUSE_PATTERNS 8
+#define NUM_PAUSE_PATTERNS 9
 
 
 class LEDControl {
@@ -70,6 +71,7 @@ public:
 							fillSnakeWithColor(false), 
 							focusPosition(0),
 							focusRow(0),
+							focusColumn(0),
 							snakeRunning(false),
 							color({0, 255, 255}) {};
 
@@ -82,7 +84,7 @@ public:
 	void show_user_snake_pattern();
 
 	uint8_t switch_disco_pattern();
-	uint8_t switch_pasue_pattern();
+	uint8_t switch_pause_pattern();
 
 	void set_color(CHSV color);
 	void set_color(uint8_t gHue, uint8_t gSat, uint8_t gVal);
@@ -99,24 +101,19 @@ public:
 	void set_column(uint8_t column_number);
 	void set_column(uint8_t column_number, CHSV& color);
 	void set_pixel(uint8_t row, uint8_t column);
+	void set_pixel(uint8_t row, uint8_t column, CHSV& color);
 	void set_pixel(uint16_t pos);
 	void set_rainbow_standing();
+	void set_rainbow_diagonal();
 	void set_rainbow_laying();
 
 	// Fill color functions
 	void fill_all_leds_solid();
 	void clear_all_leds();
 	void fill_strip(uint8_t strip_number, uint16_t delay_time);
-	void fill_tile(uint8_t tile_number, uint16_t delay_time);
-	void fill_column_seat(uint8_t column_number, uint16_t delay_time);
-	void fill_column_back(uint8_t column_number, uint16_t delay_time);
 	void fill_column(uint8_t column_number, uint16_t delay_time);
 
 	// Show functions
-	void strole_strip_downwards(uint16_t delay_time);
-	void strole_strip_upwards(uint16_t delay_time);
-	void strole_column_downwards(uint16_t delay_time);
-	void strole_column_upwards(uint16_t delay_time);
 	void fill_strip_downwards(uint16_t delay_time);
 	void fill_strip_upwards(uint16_t delay_time);
 	void fill_from_left(uint16_t delay_time);
@@ -128,7 +125,7 @@ public:
 	void double_row_snake(CHSV& color);
 	void single_row_snake(CHSV& color);
 	void single_snake(CHSV& color);
-	void uka_letters(uint8_t offset);
+	void uka_letters(uint8_t offset, uint8_t size);
 
 private:
 	CRGB* leds;	
@@ -137,7 +134,7 @@ private:
 
 	uint8_t pausePattern;
 	uint8_t discoPattern, nextDiscoPattern;
-	uint8_t pseudoRandomNumber;
+	uint8_t pseudoRandomNumber = 1;
 
 	bool ledsAreShown;
 	bool toggleBeat;

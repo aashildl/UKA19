@@ -8,6 +8,11 @@
 
 void LEDControl::show_pause_pattern()
 {
+	if (snakeRunning)
+	{
+		show_user_snake_pattern();
+		return;
+	}
 	switch (pausePattern)
 	{
 	case PAUSE_RAINBOW_LAYING:
@@ -49,11 +54,11 @@ void LEDControl::show_pause_pattern()
 
 	case PAUSE_UKA_LETTERS:
 		color.hue = 0; // base color for UKA letters is red
-		color.value = LEDS_VALUE_MAX;
-		uka_letters(focusColumn);
+		set_color_val(LEDS_VALUE_MAX);
+		uka_letters(focusColumn, LARGE_LETTERS);
 		if (toggleBeat)
 		{
-			if (++focusColumn > (NUM_LEDS_PER_ROW + 32 -1)) focusColumn = 0;
+			if (++focusColumn > (NUM_LEDS_PER_ROW + NUM_LETTER_COLS -1)) focusColumn = 0;
 
 		}
 		toggleBeat = !toggleBeat;
@@ -114,6 +119,8 @@ void LEDControl::show_disco_pattern(bool beat)
 			increment_color_hue(50);
 			set_color_val(LEDS_VALUE_MAX);
 			color.sat = LEDS_SATURATION_MAX;
+			focusPosition = 0;
+			focusColumn = 0;
 		}
 		else
 		{
@@ -285,7 +292,8 @@ void LEDControl::show_user_low_pattern(bool beat)
 	}
 	if (beat)
 	{
-		color.value = LOW_BLINK_VALUE;
+		set_color_val(LOW_BLINK_VALUE);
+		increment_color_hue();
 		fill_all_leds_solid();
 		ledsAreShown = false;
 	}
@@ -293,7 +301,7 @@ void LEDControl::show_user_low_pattern(bool beat)
 	{
 		if (ledsAreShown)
 		{
-			color.value = LOW_NO_BLINK_VALUE;
+			set_color_val(LOW_NO_BLINK_VALUE);
 			fill_all_leds_solid();
 		}
 	}
@@ -309,11 +317,11 @@ void LEDControl::show_user_full_pattern(bool beat)
 	}
 	if(beat && ledsAreShown){
 		ledsAreShown = false;
-		color.value = LEDS_VALUE_MAX;
+		set_color_val(LEDS_VALUE_MAX);
 		color.hue = 0;
 		if (toggleBeat)
 		{
-			uka_letters((NUM_LEDS_PER_ROW / 2) + (NUM_LETTER_COLS / 2));
+			uka_letters((NUM_LEDS_PER_ROW / 2) + (NUM_LETTER_COLS_SMALL / 2), SMALL_LETTERS);
 		}
 		else
 		{
@@ -330,12 +338,13 @@ void LEDControl::show_user_snake_pattern()
 	{
 		snakeRunning = true;
 		focusPosition = 0;
+		increment_color_hue(20);
 	}
 
 	if (ledsAreShown)
 	{
 		ledsAreShown = false;
-		color.value = 0;
+		set_color_val(0);
 		fill_all_leds_solid();
 		color.value = LEDS_VALUE_MAX;
 		for (uint8_t i = 0; i < 6; i++)
@@ -343,13 +352,17 @@ void LEDControl::show_user_snake_pattern()
 			set_pixel(focusPosition++);
 		}
 	}
-	if (focusPosition >= NUM_LEDS-6)
+	if (focusPosition >= NUM_LEDS)
 	{
 		snakeRunning = false;
+		set_color_val(0);
+		fill_all_leds_solid();
+		set_color_val(LEDS_VALUE_MAX);
+		increment_color_hue(70);
 	}
 }
 
-uint8_t LEDControl::switch_pasue_pattern()
+uint8_t LEDControl::switch_pause_pattern()
 {
 	pseudoRandomNumber += 23;
 	if (pseudoRandomNumber > 200)
@@ -362,8 +375,15 @@ uint8_t LEDControl::switch_pasue_pattern()
 	fillSnakeWithColor = false;
 	set_color_val(LEDS_VALUE_MAX);
 	color.sat = LEDS_SATURATION_MAX;
-	pausePattern = pseudoRandomNumber % NUM_PAUSE_PATTERNS;
-	//pausePattern = (pausePattern + 1) % NUM_PAUSE_PATTERNS;
+	uint8_t newPausePattern = pseudoRandomNumber % NUM_PAUSE_PATTERNS;
+	if (newPausePattern == pausePattern)
+	{
+		pausePattern = (pausePattern + 1) % NUM_PAUSE_PATTERNS;
+	}
+	else
+	{
+		pausePattern = newPausePattern;
+	}
 	return pausePattern;
 }
 
@@ -508,6 +528,17 @@ void LEDControl::set_pixel(uint8_t row, uint8_t column)
 	else
 		this->leds[NUM_LEDS_PER_ROW - 1 - column + (row * NUM_LEDS_PER_ROW)] = color;
 }
+
+void LEDControl::set_pixel(uint8_t row, uint8_t column, CHSV& color)
+{
+	if (column > NUM_LEDS_PER_ROW - 1) return;
+	if (row > NUM_LED_ROWS - 1) return;
+	if ((row % 2) == 0)
+		this->leds[column + (row * NUM_LEDS_PER_ROW)] = color;
+	else
+		this->leds[NUM_LEDS_PER_ROW - 1 - column + (row * NUM_LEDS_PER_ROW)] = color;
+}
+
 void LEDControl::set_pixel(uint16_t pos)
 {
 	if (pos < NUM_LEDS)
@@ -516,70 +547,10 @@ void LEDControl::set_pixel(uint16_t pos)
 	}
 }
 
-void LEDControl::fill_strip(uint8_t strip_number, uint16_t delay_time)
-{
-}
-
-void LEDControl::fill_tile(uint8_t tile_number, uint16_t delay_time)
-{
-}
-
-void LEDControl::fill_column_seat(uint8_t column_number, uint16_t delay_time)
-{
-}
-
-void LEDControl::fill_column_back(uint8_t column_number, uint16_t delay_time)
-{
-}
-
-void LEDControl::fill_column(uint8_t column_number, uint16_t delay_time)
-{
-}
-
-
-void LEDControl::strole_strip_downwards(uint16_t delay_time)
-{
-}
-void LEDControl::strole_column_downwards(uint16_t delay_time)
-{
-	for (int8_t i = 11; i >= -1; i--)
-	{
-		//if (i < 11) { set_column_seat(i + 1, CHSV(0, 0, 0)); } // Clean up last column
-		//if (i >= 0) { set_column_seat(i, color); }; // Set column
-		//FastLED.show();
-		delay(delay_time);
-	}
-}
-
-void LEDControl::strole_strip_upwards(uint16_t delay_time)
-{
-	for (uint8_t row = 0; row < 13; row++)
-	{
-		if(row < 12)
-			//LEDControl::set_strip(row, color);
-		if (row > 0)
-			//LEDControl::set_strip(row - 1, CHSV(0, 0, 0));
-		//FastLED.show();
-		delay(delay_time);
-	}
-}
-
-void LEDControl::strole_column_upwards(uint16_t delay_time)
-{
-	for (uint8_t i = 0; i < 13; i++)
-	{
-		//if (i > 0) { set_column_seat(i - 1, CHSV(0, 0, 0)); } // Clean up last column
-		//if (i < 12) { set_column_seat(i, color); }; // Set column
-		//FastLED.show();
-		delay(delay_time);
-	}
-
-}
-
-
 void LEDControl::fill_from_left(uint16_t delay_time)
 {
-	for (uint8_t column = 0; column < NUM_LEDS_PER_ROW; column++)
+	if (focusColumn >= NUM_LEDS_PER_ROW) return;
+	for (uint8_t column = 0; column < focusColumn; column++)
 	{
 		set_column(column);
 	}
@@ -587,9 +558,9 @@ void LEDControl::fill_from_left(uint16_t delay_time)
 
 void LEDControl::fill_from_right(uint16_t delay_time)
 {
-	for (int8_t column = NUM_LEDS_PER_ROW; column >= 0; column--)
+	if (focusColumn >= NUM_LEDS_PER_ROW) return;
+	for (int8_t column = focusColumn; column >= 0; column--)
 	{
-
 		set_column(column);
 	}
 }
@@ -619,6 +590,35 @@ void LEDControl::set_rainbow_standing()
 	}
 }
 
+void LEDControl::set_rainbow_diagonal()
+{
+	CHSV color_rainbow = color;
+	for (uint8_t column = 0; column < NUM_LEDS_PER_ROW; column++)
+	{
+		CHSV color_column = color_rainbow;
+		for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
+		{
+			set_pixel(row, column, color_column);
+			if (color_rainbow.hue > LEDS_HUE_MAX - LEDS_HUE_MAX / NUM_LEDS_PER_ROW)
+			{
+				color_column.hue = color_column.hue - LEDS_HUE_MAX + LEDS_HUE_MAX / NUM_LEDS_PER_ROW;
+			}
+			else
+			{
+				color_column.hue += LEDS_HUE_MAX / NUM_LEDS_PER_ROW;
+			}
+		}
+		if (color_rainbow.hue > LEDS_HUE_MAX - LEDS_HUE_MAX / NUM_LEDS_PER_ROW)
+		{
+			color_rainbow.hue = color_rainbow.hue - LEDS_HUE_MAX + LEDS_HUE_MAX / NUM_LEDS_PER_ROW;
+		}
+		else
+		{
+			color_rainbow.hue += LEDS_HUE_MAX / NUM_LEDS_PER_ROW;
+		}
+	}
+}
+
 void LEDControl::set_rainbow_laying()
 {
 	CHSV color_rainbow = color;
@@ -633,7 +633,6 @@ void LEDControl::set_rainbow_laying()
 		{
 			color_rainbow.hue += LEDS_HUE_MAX / NUM_LED_ROWS;
 		}
-		//color_rainbow.hue + 21 > 255 ? color_rainbow.hue = color_rainbow.hue + 21 - 255 : color_rainbow.hue += 21;
 	}
 }
 
@@ -705,18 +704,19 @@ void LEDControl::single_snake(CHSV& color)
 	if (++focusPosition > (NUM_LEDS-1)) { focusPosition = 0; }
 }
 
-void LEDControl::uka_letters(uint8_t offset)
+void LEDControl::uka_letters(uint8_t offset, uint8_t size)
 {
-	if (offset >= 0 && offset < NUM_LEDS_PER_ROW + 32)
+	uint8_t letterOffset = size == LARGE_LETTERS ? NUM_LETTER_COLS : NUM_LETTER_COLS_SMALL;
+	if (offset >= 0 && offset < NUM_LEDS_PER_ROW + letterOffset)
 		for (uint8_t row = 0; row < NUM_LED_ROWS; row++)
 		{
 			for (uint8_t col = 0; col < NUM_LEDS_PER_ROW; col++)
 			{
 				//if (NUM_LEDS_PER_ROW + 32 - col < 32)
-				if (col > NUM_LEDS_PER_ROW - offset -1
-				&& col < NUM_LEDS_PER_ROW - offset + 32)
+				if (col > NUM_LEDS_PER_ROW - offset - 1
+				&& col < NUM_LEDS_PER_ROW - offset + letterOffset)
 				{
-					color.sat = getBit(row, col + 1 + offset - NUM_LEDS_PER_ROW) ? 0 : LEDS_SATURATION_MAX;
+					color.sat = getBit(row, col + 1 + offset - NUM_LEDS_PER_ROW, size) ? 0 : LEDS_SATURATION_MAX;
 				}
 				else
 				{
